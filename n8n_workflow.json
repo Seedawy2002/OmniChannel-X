@@ -1,0 +1,302 @@
+{
+  "name": "OmniChannel | X",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a2848144-12ec-4abb-a531-f72fdef27cbe",
+              "name": "username",
+              "value": "doc_and_tell",
+              "type": "string"
+            },
+            {
+              "id": "67434c86-5b21-449a-a93a-9ee00074138e",
+              "name": "id",
+              "value": "2004146766640566274",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -256,
+        -32
+      ],
+      "id": "7afae7b7-cdb6-4840-9e38-c7eec31d3e43",
+      "name": "Set Up"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/users/by/username/doc_and_tell",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        -32
+      ],
+      "id": "dd68ab53-5650-42d4-803a-0bd9188856ca",
+      "name": "Get User ID",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "3AQUC4G3Q63qcnQ1",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.x.com/2/users/{{$input.item.json.data.id}}/mentions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        96,
+        -32
+      ],
+      "id": "40921a7a-55d3-4638-9c5a-12e20f6124a4",
+      "name": "Get Mentions",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "3AQUC4G3Q63qcnQ1",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are replying on X (Twitter) as the account @doc_and_tell.\n\nWrite a supportive reply in Arabic to the following tweet.\n\nSTRICT OUTPUT RULES:\n- Output PLAIN RAW TEXT only.\n- All line breaks must be escaped as \\\\n.\n- No quotes.\n- No markdown.\n\nTweet:\n{{$json.text}}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        -16
+      ],
+      "id": "a47879a8-cd46-40a7-8b31-dd043a66ef0b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        800,
+        192
+      ],
+      "id": "28881c5b-211f-444f-8107-c8c3c5802cbb",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "MHDg3Cf4q6cOoRMk",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        512,
+        -32
+      ],
+      "id": "be75e99b-67da-4b64-b714-67ddd1630ce0",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        -32
+      ],
+      "id": "5dac0261-8243-494c-924a-a9d1d86ddfac",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.first().json.data"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -32
+      ],
+      "id": "f72280fb-8082-40c6-9ed7-3e2dcabcab1e",
+      "name": "Extract Mentions Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.x.com/2/tweets",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth2Api",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Content-Type\": \"application/json\"\n}\n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{$json.text}}\",\n  \"reply\": {\n    \"in_reply_to_tweet_id\": \"{{$('Loop Over Items').item.json.id}}\"\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1152,
+        -16
+      ],
+      "id": "038f7cdc-88a9-4513-8b28-85fa48d94ab5",
+      "name": "Reply in thread",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "3AQUC4G3Q63qcnQ1",
+          "name": "X account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Up": {
+      "main": [
+        [
+          {
+            "node": "Get User ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Mentions": {
+      "main": [
+        [
+          {
+            "node": "Extract Mentions Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User ID": {
+      "main": [
+        [
+          {
+            "node": "Get Mentions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Reply in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Mentions Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply in thread": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "7f6c0806-67fa-417b-bc73-e12124571b32",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5a79b5200c01128289eb8259b65ffb0157a2b0d2cb0bcedf1418f44d051853ca"
+  },
+  "id": "MFVUFaw6RMgFUyCm",
+  "tags": []
+}
